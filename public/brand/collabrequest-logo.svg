@@ -1,0 +1,23 @@
+<svg width="960" height="240" viewBox="0 0 960 240" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">CollabRequest logo</title>
+  <desc id="desc">A green spreadsheet grid mark with coral collaboration nodes and the CollabRequest wordmark.</desc>
+  <rect width="960" height="240" fill="#F7F8F5"/>
+  <g transform="translate(48 40)">
+    <rect x="0" y="0" width="160" height="160" rx="28" fill="#1F6F5B"/>
+    <rect x="28" y="30" width="104" height="100" rx="10" fill="#F7F8F5"/>
+    <path d="M28 63H132" stroke="#D9DED6" stroke-width="7" stroke-linecap="round"/>
+    <path d="M28 96H132" stroke="#D9DED6" stroke-width="7" stroke-linecap="round"/>
+    <path d="M63 30V130" stroke="#D9DED6" stroke-width="7" stroke-linecap="round"/>
+    <path d="M97 30V130" stroke="#D9DED6" stroke-width="7" stroke-linecap="round"/>
+    <rect x="33" y="68" width="25" height="23" rx="5" fill="#A7C957"/>
+    <rect x="102" y="101" width="25" height="24" rx="5" fill="#E85D4F"/>
+    <path d="M58 79C75 75 88 85 102 113" stroke="#E85D4F" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="45.5" cy="79.5" r="8.5" fill="#F7F8F5" stroke="#1F6F5B" stroke-width="4"/>
+    <circle cx="114.5" cy="113.5" r="8.5" fill="#F7F8F5" stroke="#1F6F5B" stroke-width="4"/>
+  </g>
+  <g transform="translate(244 78)">
+    <text x="0" y="55" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="56" font-weight="760" letter-spacing="0" fill="#1F2933">Collab</text>
+    <text x="187" y="55" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="56" font-weight="760" letter-spacing="0" fill="#1F6F5B">Request</text>
+    <text x="3" y="92" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="22" font-weight="500" letter-spacing="0" fill="#5B665F">Shared sheets. Live requests. Clear ownership.</text>
+  </g>
+</svg>
