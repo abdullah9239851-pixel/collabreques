@@ -1,0 +1,456 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  PENDING
+  INVITED
+  ACTIVE
+  INACTIVE
+  RESET_REQUIRED
+}
+
+enum PermissionEffect {
+  GRANT
+  REVOKE
+}
+
+enum CheckState {
+  CHECK_IN
+  CHECK_OUT
+}
+
+enum SavedViewScope {
+  PERSONAL
+  SHARED
+}
+
+enum ActivityActionType {
+  CREATE_ROW
+  UPDATE_CELL
+  DELETE_ROW
+  LOCK_DASHBOARD
+  UNLOCK_DASHBOARD
+  UPDATE_LIST
+  LOGIN
+  LOGOUT
+  EXPORT
+}
+
+enum ErrorSeverity {
+  INFO
+  WARNING
+  ERROR
+  FATAL
+}
+
+enum ExportStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id                     String               @id @default(cuid())
+  email                  String               @unique
+  displayName            String
+  passwordHash           String?
+  role                   UserRole             @default(USER)
+  status                 UserStatus           @default(PENDING)
+  avatarUrl              String?
+  twoFactorEnabled       Boolean              @default(false)
+  lastLoginAt            DateTime?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  sessions               Session[]
+  passwordHistory        PasswordHistory[]
+  twoFactorSecret        TwoFactorSecret?
+  recoveryCodes          RecoveryCode[]
+  invitedUsers           InviteToken[]        @relation("InviteCreatedBy")
+  dashboardsCreated      Dashboard[]          @relation("DashboardCreatedBy")
+  dashboardsLocked       Dashboard[]          @relation("DashboardLockedBy")
+  requestsEntered        Request[]            @relation("RequestEnteredBy")
+  dueDatesSet            Request[]            @relation("RequestDueDateSetBy")
+  requestActivities      RequestActivity[]
+  savedViews             SavedView[]
+  permissionOverrides    PermissionOverride[] @relation("PermissionOverrideUser")
+  permissionUpdates      PermissionOverride[] @relation("PermissionOverrideUpdatedBy")
+  assignableLinks        AssignablePerson[]   @relation("AssignableLinkedUser")
+  cellLocks              CellLock[]
+  presence               Presence[]
+  typingIndicators       TypingIndicator[]
+  displaySettingsUpdated DisplaySetting[]     @relation("DisplaySettingUpdatedBy")
+  exportJobs             ExportJob[]
+  errorLogs              ErrorLog[]
+  notifications          Notification[]
+  dashboardAccess        DashboardAccess[]
+}
+
+model Session {
+  id               String     @id @default(cuid())
+  userId           String
+  refreshTokenHash String     @unique
+  expiresAt        DateTime
+  lastHeartbeatAt  DateTime?
+  userAgent        String?
+  ipAddress        String?
+  createdAt        DateTime   @default(now())
+  endedAt          DateTime?
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  presence         Presence[]
+
+  @@index([userId])
+}
+
+model InviteToken {
+  id              String    @id @default(cuid())
+  email           String
+  tokenHash       String    @unique
+  role            UserRole  @default(USER)
+  invitedByUserId String?
+  expiresAt       DateTime
+  usedAt          DateTime?
+  createdAt       DateTime  @default(now())
+  invitedBy       User?     @relation("InviteCreatedBy", fields: [invitedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+}
+
+model PasswordHistory {
+  id           String   @id @default(cuid())
+  userId       String
+  passwordHash String
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model TwoFactorSecret {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  secret    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Dashboard {
+  id                  String             @id @default(cuid())
+  name                String             @unique
+  description         String?
+  isActive            Boolean            @default(true)
+  isLocked            Boolean            @default(false)
+  lockedByUserId      String?
+  lockedAt            DateTime?
+  nextRequestSequence Int                @default(1)
+  createdByUserId     String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  lockedBy            User?              @relation("DashboardLockedBy", fields: [lockedByUserId], references: [id], onDelete: SetNull)
+  createdBy           User?              @relation("DashboardCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  requests            Request[]
+  assignablePeople    AssignablePerson[]
+  savedViews          SavedView[]
+  access              DashboardAccess[]
+  cellLocks           CellLock[]
+  presence            Presence[]
+  typingIndicators    TypingIndicator[]
+  exportJobs          ExportJob[]
+  activities          RequestActivity[]
+}
+
+model Request {
+  id                 String              @id @default(cuid())
+  dashboardId        String
+  sequenceNumber     Int
+  requestDateTime    DateTime            @default(now())
+  requestBody        String?             @db.Text
+  requestTypeId      String?
+  statusId           String?
+  assignedPersonId   String?
+  departmentId       String?
+  dueDateTime        DateTime?
+  dueDateSetByUserId String?
+  dueDateUpdatedAt   DateTime?
+  firstFilledAt      DateTime?
+  closedAt           DateTime?
+  completedAt        DateTime?
+  checkState         CheckState?
+  comments           String?             @db.Text
+  enteredByUserId    String?
+  version            Int                 @default(1)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  dashboard          Dashboard           @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  requestType        RequestTypeOption?  @relation(fields: [requestTypeId], references: [id], onDelete: SetNull)
+  status             StatusOption?       @relation(fields: [statusId], references: [id], onDelete: SetNull)
+  assignedPerson     AssignablePerson?   @relation(fields: [assignedPersonId], references: [id], onDelete: SetNull)
+  department         DepartmentOption?   @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  dueDateSetBy       User?               @relation("RequestDueDateSetBy", fields: [dueDateSetByUserId], references: [id], onDelete: SetNull)
+  enteredBy          User?               @relation("RequestEnteredBy", fields: [enteredByUserId], references: [id], onDelete: SetNull)
+  activity           RequestActivity[]
+  cellLocks          CellLock[]
+  typingIndicators   TypingIndicator[]
+
+  @@unique([dashboardId, sequenceNumber])
+  @@index([dashboardId, statusId])
+  @@index([dashboardId, dueDateTime])
+  @@index([assignedPersonId])
+  @@index([departmentId])
+}
+
+model StatusOption {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  fillColor   String
+  textColor   String
+  isClosing   Boolean   @default(false)
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  requests    Request[]
+}
+
+model RequestTypeOption {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  requests  Request[]
+}
+
+model DepartmentOption {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  requests  Request[]
+}
+
+model AssignablePerson {
+  id           String    @id @default(cuid())
+  dashboardId  String
+  name         String
+  email        String?
+  isActive     Boolean   @default(true)
+  linkedUserId String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  dashboard    Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  linkedUser   User?     @relation("AssignableLinkedUser", fields: [linkedUserId], references: [id], onDelete: SetNull)
+  requests     Request[]
+
+  @@unique([dashboardId, name])
+  @@index([linkedUserId])
+}
+
+model RequestActivity {
+  id          String             @id @default(cuid())
+  dashboardId String
+  requestId   String?
+  userId      String?
+  actionType  ActivityActionType
+  fieldName   String?
+  oldValue    Json?
+  newValue    Json?
+  metadata    Json?
+  createdAt   DateTime           @default(now())
+  dashboard   Dashboard          @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  request     Request?           @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  user        User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([dashboardId, createdAt])
+  @@index([requestId])
+}
+
+model SavedView {
+  id          String         @id @default(cuid())
+  dashboardId String
+  ownerUserId String?
+  name        String
+  scope       SavedViewScope @default(PERSONAL)
+  config      Json
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  dashboard   Dashboard      @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  owner       User?          @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@index([dashboardId, ownerUserId])
+}
+
+model Permission {
+  key          String                  @id
+  label        String
+  description  String?
+  category     String
+  roleDefaults RoleDefaultPermission[]
+  overrides    PermissionOverride[]
+}
+
+model RoleDefaultPermission {
+  id            String           @id @default(cuid())
+  role          UserRole
+  permissionKey String
+  effect        PermissionEffect @default(GRANT)
+  permission    Permission       @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+
+  @@unique([role, permissionKey])
+}
+
+model PermissionOverride {
+  id              String           @id @default(cuid())
+  userId          String
+  permissionKey   String
+  effect          PermissionEffect
+  reason          String?
+  updatedByUserId String?
+  updatedAt       DateTime         @updatedAt
+  user            User             @relation("PermissionOverrideUser", fields: [userId], references: [id], onDelete: Cascade)
+  permission      Permission       @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+  updatedBy       User?            @relation("PermissionOverrideUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, permissionKey])
+}
+
+model DashboardAccess {
+  id          String    @id @default(cuid())
+  dashboardId String
+  userId      String
+  canView     Boolean   @default(true)
+  canEdit     Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  dashboard   Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([dashboardId, userId])
+}
+
+model CellLock {
+  id          String    @id @default(cuid())
+  dashboardId String
+  requestId   String
+  fieldName   String
+  userId      String
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  dashboard   Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  request     Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([dashboardId, requestId, fieldName])
+  @@index([userId])
+}
+
+model Presence {
+  id              String    @id @default(cuid())
+  dashboardId     String
+  sessionId       String
+  userId          String
+  cursorRequestId String?
+  cursorFieldName String?
+  lastSeenAt      DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  dashboard       Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  session         Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([dashboardId, sessionId])
+  @@index([userId])
+}
+
+model TypingIndicator {
+  id          String    @id @default(cuid())
+  dashboardId String
+  requestId   String
+  fieldName   String
+  userId      String
+  startedAt   DateTime  @default(now())
+  expiresAt   DateTime
+  dashboard   Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  request     Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([dashboardId, requestId, fieldName, userId])
+}
+
+model DisplaySetting {
+  key             String   @id
+  value           Json
+  updatedByUserId String?
+  updatedAt       DateTime @updatedAt
+  updatedBy       User?    @relation("DisplaySettingUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+}
+
+model ErrorLog {
+  id          String        @id @default(cuid())
+  severity    ErrorSeverity @default(ERROR)
+  message     String        @db.Text
+  stackTrace  String?       @db.Text
+  source      String?
+  metadata    Json?
+  userId      String?
+  createdAt   DateTime      @default(now())
+  acknowledgedAt DateTime?
+  user        User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([severity, createdAt])
+}
+
+model ExportJob {
+  id          String       @id @default(cuid())
+  dashboardId String
+  requestedByUserId String
+  format      String       @default("csv")
+  filter      Json?
+  status      ExportStatus @default(QUEUED)
+  fileUrl     String?
+  errorMessage String?     @db.Text
+  createdAt   DateTime     @default(now())
+  completedAt DateTime?
+  dashboard   Dashboard    @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  requestedBy User         @relation(fields: [requestedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([dashboardId, createdAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  body      String?   @db.Text
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
