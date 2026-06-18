@@ -37,6 +37,7 @@ export default function Home() {
             <h1>Audit Requests</h1>
           </div>
           <div className="actions">
+            <a className="ghost actionLink" href="/login">Sign In</a>
             <button className="ghost">Export CSV</button>
             <button className="primary">Add Row</button>
           </div>
