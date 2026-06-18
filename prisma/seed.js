@@ -1,4 +1,4 @@
-const { PrismaClient, UserRole, UserStatus, PermissionEffect, CheckState } = require("@prisma/client");
+const { PrismaClient, UserRole, UserStatus, PermissionEffect, CheckState, ErrorSeverity } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 
 const prisma = new PrismaClient();
@@ -125,7 +125,6 @@ async function main() {
           name,
           description,
           createdByUserId: superAdmin.id,
-          nextRequestSequence: 4,
         },
         update: {
           description,
@@ -174,7 +173,7 @@ async function main() {
     {
       dashboardName: "Audit Requests",
       sequenceNumber: 1,
-      requestBody: "Upload vendor invoice evidence for monthly audit pack.",
+      requestBody: "Provide Q2 bank reconciliation evidence for Finance review.",
       requestType: "Audit Request",
       status: "Open",
       assignedTo: "Finance Team",
@@ -186,8 +185,8 @@ async function main() {
     {
       dashboardName: "Audit Requests",
       sequenceNumber: 2,
-      requestBody: "Confirm policy change request ownership before close.",
-      requestType: "Change Request",
+      requestBody: "Upload vendor invoice approval chain for sampled transaction.",
+      requestType: "Information Request",
       status: "In Progress",
       assignedTo: "Abdullah",
       department: "Compliance",
@@ -196,21 +195,81 @@ async function main() {
       comments: "Shows admin-owned due date flow.",
     },
     {
+      dashboardName: "Audit Requests",
+      sequenceNumber: 3,
+      requestBody: "Confirm whether payroll exception report was reviewed.",
+      requestType: "Approval Request",
+      status: "Waiting",
+      assignedTo: "Sara",
+      department: "HR",
+      dueInHours: -6,
+      checkState: CheckState.CHECK_OUT,
+      comments: "Overdue by due date for smoke testing.",
+    },
+    {
+      dashboardName: "Audit Requests",
+      sequenceNumber: 4,
+      requestBody: "Submit access control evidence for terminated users.",
+      requestType: "Audit Request",
+      status: "Completed",
+      assignedTo: "Ali",
+      department: "IT",
+      dueInHours: 8,
+      checkState: CheckState.CHECK_IN,
+      comments: "Completed row for closing-status tests.",
+    },
+    {
       dashboardName: "Operations Requests",
       sequenceNumber: 1,
-      requestBody: "Prepare daily operations handover checklist.",
+      requestBody: "Replace damaged access badge for front desk staff.",
       requestType: "Task",
-      status: "Waiting",
+      status: "Open",
       assignedTo: "Operations Lead",
       department: "Operations",
       dueInHours: 12,
       checkState: CheckState.CHECK_OUT,
-      comments: "Waiting on confirmation.",
+      comments: "Open operations task.",
+    },
+    {
+      dashboardName: "Operations Requests",
+      sequenceNumber: 2,
+      requestBody: "Investigate laptop docking station issue in conference room.",
+      requestType: "Complaint",
+      status: "In Progress",
+      assignedTo: "IT Support",
+      department: "IT",
+      dueInHours: 20,
+      checkState: null,
+      comments: "Assigned to IT Support.",
+    },
+    {
+      dashboardName: "Operations Requests",
+      sequenceNumber: 3,
+      requestBody: "Review process update for visitor sign-in workflow.",
+      requestType: "Change Request",
+      status: "Waiting",
+      assignedTo: "Operations Lead",
+      department: "Operations",
+      dueInHours: -30,
+      checkState: CheckState.CHECK_OUT,
+      comments: "Overdue by open-duration and due-date smoke path.",
+    },
+    {
+      dashboardName: "Operations Requests",
+      sequenceNumber: 4,
+      requestBody: "Confirm equipment inventory count for storage room.",
+      requestType: "Task",
+      status: "Closed",
+      assignedTo: "Customer Support",
+      department: "Operations",
+      dueInHours: 6,
+      checkState: null,
+      comments: "Closed operations row.",
     },
     {
       dashboardName: "Client Follow-ups",
       sequenceNumber: 1,
-      requestBody: "Follow up with client about delayed response complaint.",
+      requestBody: "Investigate complaint about delayed response time.",
       requestType: "Complaint",
       status: "Open",
       assignedTo: "Client Success",
@@ -219,11 +278,48 @@ async function main() {
       checkState: null,
       comments: "Demo customer-facing request.",
     },
+    {
+      dashboardName: "Client Follow-ups",
+      sequenceNumber: 2,
+      requestBody: "Send requested contract amendment information to client.",
+      requestType: "Information Request",
+      status: "In Progress",
+      assignedTo: "Sara",
+      department: "Customer Support",
+      dueInHours: 30,
+      checkState: CheckState.CHECK_IN,
+      comments: "Shows client success follow-up.",
+    },
+    {
+      dashboardName: "Client Follow-ups",
+      sequenceNumber: 3,
+      requestBody: "Approve exception for client onboarding deadline.",
+      requestType: "Approval Request",
+      status: "Waiting",
+      assignedTo: "Admin Team",
+      department: "Compliance",
+      dueInHours: 4,
+      checkState: null,
+      comments: "Waiting for admin approval.",
+    },
+    {
+      dashboardName: "Client Follow-ups",
+      sequenceNumber: 4,
+      requestBody: "Close completed follow-up after client confirmation.",
+      requestType: "Task",
+      status: "Completed",
+      assignedTo: "Ali",
+      department: "Customer Support",
+      dueInHours: 10,
+      checkState: CheckState.CHECK_OUT,
+      comments: "Completed follow-up row.",
+    },
   ];
 
   for (const item of demoRequests) {
     const dashboard = dashboardByName[item.dashboardName];
     const dueDate = new Date(Date.now() + item.dueInHours * 60 * 60 * 1000);
+    const closedAt = statusByName[item.status].isClosing ? new Date() : null;
     const request = await prisma.request.upsert({
       where: {
         dashboardId_sequenceNumber: {
@@ -243,6 +339,8 @@ async function main() {
         dueDateSetByUserId: admin.id,
         dueDateUpdatedAt: new Date(),
         firstFilledAt: new Date(),
+        closedAt,
+        completedAt: item.status === "Completed" ? closedAt : null,
         checkState: item.checkState,
         comments: item.comments,
         enteredByUserId: users[2].id,
@@ -256,9 +354,12 @@ async function main() {
         dueDateTime: dueDate,
         dueDateSetByUserId: admin.id,
         dueDateUpdatedAt: new Date(),
+        firstFilledAt: new Date(),
+        closedAt,
+        completedAt: item.status === "Completed" ? closedAt : null,
         checkState: item.checkState,
         comments: item.comments,
-        version: { increment: 1 },
+        version: 1,
       },
     });
 
@@ -280,6 +381,19 @@ async function main() {
         },
       });
     }
+  }
+
+  for (const dashboard of dashboards) {
+    const maxSequence = Math.max(
+      ...demoRequests
+        .filter((request) => request.dashboardName === dashboard.name)
+        .map((request) => request.sequenceNumber),
+    );
+
+    await prisma.dashboard.update({
+      where: { id: dashboard.id },
+      data: { nextRequestSequence: maxSequence + 1 },
+    });
   }
 
   const permissions = [
@@ -360,6 +474,67 @@ async function main() {
       updatedByUserId: superAdmin.id,
     },
   });
+
+  const savedViews = [
+    ["Audit Requests", "Open Items", { status: ["Open", "In Progress", "Waiting"], sort: [{ field: "dueDateTime", direction: "asc" }] }],
+    ["Operations Requests", "Overdue Items", { overdueOnly: true, sort: [{ field: "dueDateTime", direction: "asc" }] }],
+    ["Client Follow-ups", "My Follow-ups", { assignedTo: ["Client Success", "Sara"], status: ["Open", "In Progress", "Waiting"] }],
+  ];
+
+  for (const [dashboardName, name, config] of savedViews) {
+    const dashboard = dashboardByName[dashboardName];
+    const existing = await prisma.savedView.findFirst({
+      where: {
+        dashboardId: dashboard.id,
+        name,
+        ownerUserId: superAdmin.id,
+      },
+    });
+
+    if (existing) {
+      await prisma.savedView.update({
+        where: { id: existing.id },
+        data: { config, scope: "SHARED" },
+      });
+    } else {
+      await prisma.savedView.create({
+        data: {
+          dashboardId: dashboard.id,
+          ownerUserId: superAdmin.id,
+          name,
+          scope: "SHARED",
+          config,
+        },
+      });
+    }
+  }
+
+  const existingDemoErrors = await prisma.errorLog.count({
+    where: {
+      source: "demo-seed",
+    },
+  });
+
+  if (existingDemoErrors === 0) {
+    await prisma.errorLog.createMany({
+      data: [
+        {
+          severity: ErrorSeverity.INFO,
+          source: "demo-seed",
+          message: "Demo info log for diagnostics screen smoke testing.",
+          metadata: { demo: true },
+          userId: superAdmin.id,
+        },
+        {
+          severity: ErrorSeverity.WARNING,
+          source: "demo-seed",
+          message: "Demo warning log for diagnostics screen smoke testing.",
+          metadata: { demo: true },
+          userId: admin.id,
+        },
+      ],
+    });
+  }
 
   console.log("Seed complete: users, sheets, dropdown lists, demo requests, and permissions are ready.");
 }
