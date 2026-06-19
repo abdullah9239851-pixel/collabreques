@@ -50,3 +50,12 @@ export async function getCurrentUser() {
 
   return session.user;
 }
+
+export async function getCurrentUserSafe() {
+  try {
+    return await getCurrentUser();
+  } catch (error) {
+    console.error("Current user lookup failed", error);
+    return null;
+  }
+}

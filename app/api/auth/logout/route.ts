@@ -6,15 +6,19 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export async function POST() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(SESSION_COOKIE)?.value;
 
-  if (token) {
-    await prisma.session.deleteMany({
-      where: {
-        refreshTokenHash: hashSessionToken(token),
-      },
-    });
+    if (token) {
+      await prisma.session.deleteMany({
+        where: {
+          refreshTokenHash: hashSessionToken(token),
+        },
+      });
+    }
+  } catch (error) {
+    console.error("Logout session cleanup failed", error);
   }
 
   const response = NextResponse.json({ ok: true });

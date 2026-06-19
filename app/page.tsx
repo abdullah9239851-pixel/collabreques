@@ -1,4 +1,8 @@
 import { demoRequests, demoSheets } from "@/lib/demo-data";
+import { LogoutButton } from "@/app/LogoutButton";
+import { getCurrentUserSafe } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 const statusClass: Record<string, string> = {
   open: "statusOpen",
@@ -8,7 +12,12 @@ const statusClass: Record<string, string> = {
   closed: "statusClosed"
 };
 
-export default function Home() {
+export default async function Home() {
+  const user = await getCurrentUserSafe();
+  const signedInName = user?.displayName ?? "Demo Super Admin";
+  const signedInEmail = user?.email ?? "abdullah9239851@gmail.com";
+  const signedInRole = user?.role ? user.role.replace("_", " ") : "Demo Mode";
+
   return (
     <main className="shell">
       <aside className="sidebar">
@@ -25,8 +34,10 @@ export default function Home() {
         </nav>
         <div className="sidebarCard">
           <span className="eyebrow">Signed in as</span>
-          <strong>Super Admin</strong>
-          <span>abdullah9239851@gmail.com</span>
+          <strong>{signedInName}</strong>
+          <span>{signedInEmail}</span>
+          <span className="rolePill">{signedInRole}</span>
+          {user ? <LogoutButton /> : <a className="textButton" href="/login">Sign In</a>}
         </div>
       </aside>
 
@@ -37,7 +48,7 @@ export default function Home() {
             <h1>Audit Requests</h1>
           </div>
           <div className="actions">
-            <a className="ghost actionLink" href="/login">Sign In</a>
+            {user ? <span className="authBadge">Authenticated</span> : <a className="ghost actionLink" href="/login">Sign In</a>}
             <button className="ghost">Export CSV</button>
             <button className="primary">Add Row</button>
           </div>
